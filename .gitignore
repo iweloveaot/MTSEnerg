@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Секреты и локальные настройки
+.env
+.env.*
+!.env.example
+
+# Временные файлы Windows
+*:Zone.Identifier
+
+# Редактор
+.vscode/
+.idea/
+
+# Системные файлы
+.DS_Store
+Thumbs.db

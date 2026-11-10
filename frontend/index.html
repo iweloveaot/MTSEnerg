@@ -1,0 +1,126 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>МТС Energytool — ИИ-консультант</title>
+
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./app.js" defer></script>
+</head>
+
+<body>
+    <div class="app">
+
+        <header class="app-header">
+            <div class="app-brand">
+                <h1>МТС Energytool</h1>
+                <p>ИИ-консультант по энергоресурсам</p>
+            </div>
+
+            <button
+                id="new-chat-button"
+                type="button"
+            >
+                Новый диалог
+            </button>
+        </header>
+
+        <main class="app-main">
+
+            <section
+                class="chat-panel"
+                aria-label="Диалог с консультантом"
+            >
+                <div
+                    id="chat-messages"
+                    class="chat-messages"
+                    role="log"
+                    aria-live="polite"
+                    aria-relevant="additions"
+                >
+                    <div class="message assistant-message">
+                        <p>
+                            Здравствуйте! Я ИИ-консультант
+                            МТС Energytool.
+                        </p>
+                        <p>
+                            Расскажите, какую задачу
+                            вы хотите решить.
+                        </p>
+                    </div>
+                </div>
+
+                <form id="chat-form" class="chat-form">
+                    <label for="message-input">
+                        Ваше сообщение
+                    </label>
+
+                    <textarea
+                        id="message-input"
+                        name="message"
+                        rows="3"
+                        placeholder="Опишите вашу задачу..."
+                        required
+                    ></textarea>
+
+                    <button
+                        id="send-button"
+                        type="submit"
+                    >
+                        Отправить
+                    </button>
+                </form>
+            </section>
+
+            <aside
+                class="sidebar"
+                aria-label="Информация о консультации"
+            >
+                <section class="application-panel">
+                    <h2>Заявка менеджеру</h2>
+
+                    <p id="application-status">
+                        Заявка пока не оформлена.
+                    </p>
+
+                    <div
+                        id="application-details"
+                        hidden
+                    ></div>
+                </section>
+
+                <section class="debug-panel">
+                    <h2>Режим отладки</h2>
+
+                    <label for="debug-toggle">
+                        <input
+                            id="debug-toggle"
+                            type="checkbox"
+                        >
+                        Показывать техническую информацию
+                    </label>
+
+                    <div id="debug-details" hidden>
+                        <p>
+                            Время ответа:
+                            <span id="response-time">—</span>
+                        </p>
+
+                        <h3>Использованные документы</h3>
+
+                        <ul id="source-documents"></ul>
+                    </div>
+                </section>
+            </aside>
+
+        </main>
+
+    </div>
+</body>
+</html>

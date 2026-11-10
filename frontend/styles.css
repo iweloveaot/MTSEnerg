@@ -1,0 +1,340 @@
+
+/* frontend/styles.css */
+
+/* Основные цвета и размеры приложения */
+:root {
+    font-family: Arial, Helvetica, sans-serif;
+    color: #202124;
+    background-color: #f5f6f8;
+
+    --mts-red: #e30611;
+    --mts-red-hover: #c4000a;
+    --border-color: #e4e7ec;
+    --text-secondary: #667085;
+    --surface: #ffffff;
+    --border-radius: 16px;
+}
+
+/* Общие настройки */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+}
+
+button,
+textarea {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+    outline: 3px solid #ffb5b9;
+    outline-offset: 2px;
+}
+
+/* Основной контейнер приложения */
+.app {
+    max-width: 1440px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 24px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Шапка */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+}
+
+.app-brand h1 {
+    margin: 0 0 6px;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.app-brand p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+#new-chat-button {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--surface);
+    color: #202124;
+    padding: 12px 18px;
+}
+
+#new-chat-button:hover {
+    background: #f0f1f3;
+}
+
+/* Центральная часть */
+.app-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Основная область чата */
+.chat-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 550px;
+}
+
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+    padding: 24px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    overflow-y: auto;
+}
+
+/* Сообщения */
+.message {
+    max-width: 80%;
+    padding: 14px 18px;
+    border-radius: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.message p {
+    margin: 0;
+}
+
+.message p + p {
+    margin-top: 8px;
+}
+
+.assistant-message {
+    align-self: flex-start;
+    background: #f1f3f6;
+    border-bottom-left-radius: 4px;
+}
+
+.user-message {
+    align-self: flex-end;
+    background: #fff0f0;
+    border-bottom-right-radius: 4px;
+}
+
+/* Форма отправки сообщения */
+.chat-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 24px;
+
+    border-top: 1px solid var(--border-color);
+}
+
+.chat-form label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#message-input {
+    width: 100%;
+    min-height: 84px;
+    padding: 12px 14px;
+
+    border: 1px solid #d0d5dd;
+    border-radius: 10px;
+    background: #ffffff;
+
+    resize: vertical;
+    line-height: 1.5;
+}
+
+#message-input:focus {
+    border-color: var(--mts-red);
+}
+
+#send-button {
+    align-self: flex-end;
+
+    background: var(--mts-red);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+
+    padding: 12px 24px;
+    font-weight: 600;
+}
+
+#send-button:hover:not(:disabled) {
+    background: var(--mts-red-hover);
+}
+
+/* Правая панель */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.application-panel,
+.debug-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 22px;
+}
+
+.application-panel h2,
+.debug-panel h2 {
+    margin: 0 0 16px;
+    font-size: 18px;
+}
+
+.application-panel p {
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+#application-details {
+    margin-top: 16px;
+    overflow-wrap: anywhere;
+}
+
+#debug-toggle {
+    accent-color: var(--mts-red);
+}
+
+.debug-panel label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+
+    font-size: 13px;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+#debug-details {
+    margin-top: 18px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#debug-details h3 {
+    font-size: 14px;
+    margin-top: 16px;
+}
+
+#source-documents {
+    padding-left: 20px;
+    overflow-wrap: anywhere;
+}
+
+#source-documents li + li {
+    margin-top: 6px;
+}
+
+/* Уважение к атрибуту hidden в HTML */
+[hidden] {
+    display: none !important;
+}
+
+/* Планшеты */
+@media (max-width: 900px) {
+    .app-main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sidebar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .chat-panel {
+        min-height: 500px;
+    }
+}
+
+/* Мобильные телефоны */
+@media (max-width: 600px) {
+    .app {
+        padding: 12px;
+        gap: 16px;
+    }
+
+    .app-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .app-brand h1 {
+        font-size: 24px;
+    }
+
+    #new-chat-button {
+        width: 100%;
+    }
+
+    .chat-panel {
+        min-height: 450px;
+    }
+
+    .chat-messages {
+        padding: 16px;
+    }
+
+    .message {
+        max-width: 95%;
+    }
+
+    .chat-form {
+        padding: 16px;
+    }
+
+    .sidebar {
+        grid-template-columns: 1fr;
+    }
+
+    .application-panel,
+    .debug-panel {
+        padding: 18px;
+    }
+}
