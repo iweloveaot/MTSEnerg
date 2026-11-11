@@ -99,6 +99,17 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(data["application"]["ready"])
         self.assertIn("отправка менеджеру пока не подключена", data["answer"])
 
+    def test_standalone_name_from_browser_flow(self):
+        first = self.chat("Хочу оформить заявку").json()
+        self.assertIn("имя и фамилию", first["answer"])
+        second = self.chat("Иван Петров").json()
+        self.assertEqual(second["application"]["contacts"]["full_name"], "Иван Петров")
+        self.assertIn("телефон", second["answer"])
+        third = self.chat("Компания ООО ТестЭнерго").json()
+        self.assertEqual(third["application"]["contacts"]["company"], "ТестЭнерго")
+        fourth = self.chat("Мой телефон +7 999 123-45-67").json()
+        self.assertTrue(fourth["application"]["ready"])
+
     def test_application_refusal_continues_consultation(self):
         self.chat("Хочу оформить заявку")
         result = self.chat("Не хочу оставлять телефон").json()

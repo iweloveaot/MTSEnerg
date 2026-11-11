@@ -41,13 +41,26 @@ REFUSAL_PATTERN = re.compile(
 )
 
 
-def find_name(text: str) -> str | None:
+# A short name-only answer is accepted only in response to the assistant's
+# explicit request for a name. This avoids treating product names as contacts.
+STANDALONE_NAME_PATTERN = re.compile(
+    r"[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){1,2}[.!]?"
+)
+NAME_QUESTION_PATTERN = re.compile(
+    r"как\s+я\s+могу\s+к\s+вам\s+обращаться|имя\s+и\s+фамилию",
+    re.IGNORECASE,
+)
+
+
+def find_name(text: str, *, asked_for_name: bool = False) -> str | None:
     matches = list(NAME_PATTERN.finditer(text))
+    if matches:
+        return matches[-1].group(1).strip()
 
-    if not matches:
-        return None
+    if asked_for_name and STANDALONE_NAME_PATTERN.fullmatch(text.strip()):
+        return text.strip().rstrip(".!")
 
-    return matches[-1].group(1).strip()
+    return None
 
 
 def find_company(text: str) -> str | None:
@@ -110,20 +123,28 @@ def extract_contacts(
     )
 
     declined = contact_collection_declined
+    previous_message = None
 
     for message in messages:
         if message.role != "user":
+            previous_message = message
             continue
 
         text = message.content.strip()
 
         if not text:
+            previous_message = message
             continue
 
         if REFUSAL_PATTERN.search(text):
             declined = True
 
-        name = find_name(text)
+        asked_for_name = (
+            previous_message is not None
+            and previous_message.role == "assistant"
+            and bool(NAME_QUESTION_PATTERN.search(previous_message.content))
+        )
+        name = find_name(text, asked_for_name=asked_for_name)
         company = find_company(text)
         phone = find_phone(text)
 
@@ -136,5 +157,7 @@ def extract_contacts(
         if phone is not None:
             contacts.phone = phone
             declined = False
+
+        previous_message = message
 
     return contacts, declined

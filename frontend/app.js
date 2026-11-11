@@ -85,7 +85,7 @@ function renderApplication(application) {
         return;
     }
 
-    applicationStatus.textContent = "Заявка готова.";
+    applicationStatus.textContent = "Заявка сформирована, но ещё не отправлена менеджеру.";
     applicationDetails.hidden = false;
 
     const fields = [

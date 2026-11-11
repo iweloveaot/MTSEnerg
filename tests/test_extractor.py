@@ -54,6 +54,36 @@ class ExtractorTests(unittest.TestCase):
         )
         self.assertTrue(result.ready)
 
+    def test_standalone_name_after_name_question(self):
+        result = make_result([
+            Message(role="user", content="Хочу оформить заявку"),
+            Message(role="assistant", content=(
+                "Как я могу к вам обращаться? "
+                "Укажите, пожалуйста, имя и фамилию."
+            )),
+            Message(role="user", content="Иван Петров"),
+            Message(role="assistant", content="Подскажите телефон для связи."),
+            Message(role="user", content="Компания ООО ТестЭнерго"),
+        ], application_requested=True)
+        self.assertEqual(result.contacts.full_name, "Иван Петров")
+        self.assertEqual(result.contacts.company, "ТестЭнерго")
+        self.assertEqual(result.missing_fields, ["phone"])
+        self.assertIn("телефон", result.next_question)
+
+    def test_unprompted_standalone_name_not_guessed(self):
+        result = make_result([
+            Message(role="user", content="Иван Петров"),
+        ])
+        self.assertIsNone(result.contacts.full_name)
+
+    def test_standalone_name_does_not_capture_company(self):
+        result = make_result([
+            Message(role="assistant", content="Укажите, пожалуйста, имя и фамилию."),
+            Message(role="user", content="Компания ООО ТестЭнерго"),
+        ])
+        self.assertIsNone(result.contacts.full_name)
+        self.assertEqual(result.contacts.company, "ТестЭнерго")
+
     def test_corrected_phone(self):
         result = make_result([
             Message(

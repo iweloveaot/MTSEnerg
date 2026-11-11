@@ -7,6 +7,55 @@ from application_agent.summarizer import summarize_dialogue
 
 class SummarizerTests(unittest.TestCase):
 
+    def test_only_application_and_contacts_not_a_problem(self):
+        messages = [
+            Message(role="user", content="Хочу оформить заявку"),
+            Message(role="assistant", content="Как я могу к вам обращаться? Укажите, пожалуйста, имя и фамилию."),
+            Message(role="user", content="Иван Петров"),
+            Message(role="assistant", content="Если хотите оставить заявку специалисту, подскажите, пожалуйста, номер телефона для связи."),
+            Message(role="user", content="89123333333"),
+            Message(role="assistant", content="Подскажите, пожалуйста, название вашей компании."),
+            Message(role="user", content="Компания ООО ТестЭнерго"),
+            Message(role="assistant", content="Данные заявки собраны. Они отображаются в карточке заявки; отправка менеджеру пока не подключена."),
+        ]
+        result = summarize_dialogue(messages)
+        self.assertEqual(result.problem, "Задача клиента пока не уточнена.")
+        self.assertEqual(result.circumstances, "")
+        self.assertEqual(result.discussed_solution, "")
+        self.assertEqual(result.open_questions, [])
+
+    def test_real_energy_problem_survives_application_and_contacts(self):
+        messages = [
+            Message(role="user", content="У нас выросли счета за электричество."),
+            Message(role="assistant", content="Какая у вас ценовая категория?"),
+            Message(role="user", content="Четвёртая."),
+            Message(role="user", content="Хочу оформить заявку"),
+            Message(role="assistant", content="Как я могу к вам обращаться? Укажите, пожалуйста, имя и фамилию."),
+            Message(role="user", content="Иван Петров"),
+            Message(role="user", content="Компания ООО ТестЭнерго"),
+            Message(role="user", content="89123333333"),
+        ]
+        result = summarize_dialogue(messages)
+        self.assertEqual(result.problem, "У нас выросли счета за электричество.")
+        self.assertIn("Четвёртая", result.circumstances)
+        self.assertNotIn("Иван Петров", result.circumstances)
+        self.assertNotIn("ТестЭнерго", result.circumstances)
+        self.assertNotIn("89123333333", result.circumstances)
+
+    def test_application_intent_followed_by_problem_in_same_message(self):
+        result = summarize_dialogue([
+            Message(role="user", content="Хочу оформить заявку, у нас выросли счета за электричество.")
+        ])
+        self.assertEqual(result.problem, "у нас выросли счета за электричество.")
+
+    def test_contact_prompt_not_in_discussed_solution(self):
+        result = summarize_dialogue([
+            Message(role="user", content="Хотим снизить расходы."),
+            Message(role="assistant", content="Подскажите, пожалуйста, название вашей компании."),
+            Message(role="assistant", content="Предлагаю сравнить потребление за одинаковые периоды."),
+        ])
+        self.assertEqual(result.discussed_solution, "Предлагаю сравнить потребление за одинаковые периоды.")
+
     def test_extract_problem(self):
         messages = [
             Message(
