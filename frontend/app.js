@@ -182,8 +182,8 @@ chatForm.addEventListener("submit", async (event) => {
 
         addMessage(
             "assistant",
-            "Не удалось получить ответ сервера. " +
-            "Проверьте подключение и попробуйте снова.",
+            "Не удалось получить ответ от сервиса консультации. " +
+            "Попробуйте позже.",
         );
     } finally {
         setSending(false);
@@ -199,7 +199,8 @@ newChatButton.addEventListener("click", () => {
     addMessage(
         "assistant",
         "Здравствуйте! Я ИИ-консультант МТС Energytool. " +
-        "Расскажите, какую задачу вы хотите решить.",
+        "Задайте вопрос об энергопотреблении или напишите «Оформить заявку», " +
+        "чтобы оставить контакты специалисту.",
     );
 
     applicationStatus.textContent =

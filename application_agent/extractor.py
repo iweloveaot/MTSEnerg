@@ -44,7 +44,8 @@ REFUSAL_PATTERN = re.compile(
 # A short name-only answer is accepted only in response to the assistant's
 # explicit request for a name. This avoids treating product names as contacts.
 STANDALONE_NAME_PATTERN = re.compile(
-    r"[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){1,2}[.!]?"
+    r"[А-ЯЁа-яё][а-яё-]+(?:\s+[А-ЯЁа-яё][а-яё-]+){1,2}[.!]?",
+    re.IGNORECASE,
 )
 NAME_QUESTION_PATTERN = re.compile(
     r"как\s+я\s+могу\s+к\s+вам\s+обращаться|имя\s+и\s+фамилию",
@@ -52,13 +53,42 @@ NAME_QUESTION_PATTERN = re.compile(
 )
 
 
+# Ответ без слова «компания» допустим только после вопроса о компании.
+COMPANY_QUESTION_PATTERN = re.compile(
+    r"(?:название|назовите)\s+(?:вашей\s+)?компании|"
+    r"как\s+называется\s+(?:ваша\s+)?компания",
+    re.IGNORECASE,
+)
+COMPANY_ANSWER_PATTERN = re.compile(
+    r"(?:(?:ООО|АО|ПАО|ИП)\s+)?[А-ЯЁа-яёA-Za-z][\w-]*"
+    r"(?:\s+[А-ЯЁа-яёA-Za-z][\w-]*){0,3}"
+)
+COMPANY_STOP_ANSWERS = {"не знаю", "нет компании", "нет", "пока нет", "не хочу", "без компании"}
+
+
+def find_company_answer(text: str) -> str | None:
+    candidate = text.strip().strip(' «»".!')
+    if not candidate or candidate.casefold() in COMPANY_STOP_ANSWERS:
+        return None
+    if not COMPANY_ANSWER_PATTERN.fullmatch(candidate):
+        return None
+    if NAME_PATTERN.search(candidate) or PHONE_PATTERN.search(candidate):
+        return None
+    return candidate.removeprefix("ООО ").strip() if candidate.startswith("ООО ") else candidate
+
+
 def find_name(text: str, *, asked_for_name: bool = False) -> str | None:
     matches = list(NAME_PATTERN.finditer(text))
     if matches:
         return matches[-1].group(1).strip()
 
-    if asked_for_name and STANDALONE_NAME_PATTERN.fullmatch(text.strip()):
-        return text.strip().rstrip(".!")
+    candidate = text.strip().rstrip(".!")
+    if (asked_for_name
+            and STANDALONE_NAME_PATTERN.fullmatch(text.strip())
+            and not COMPANY_PATTERN.search(candidate)
+            and not candidate.casefold().startswith(("компания ", "организация "))):
+        return " ".join(part[:1].upper() + part[1:].lower()
+                        for part in candidate.split())
 
     return None
 
@@ -146,6 +176,13 @@ def extract_contacts(
         )
         name = find_name(text, asked_for_name=asked_for_name)
         company = find_company(text)
+        asked_for_company = (
+            previous_message is not None
+            and previous_message.role == "assistant"
+            and bool(COMPANY_QUESTION_PATTERN.search(previous_message.content))
+        )
+        if company is None and asked_for_company:
+            company = find_company_answer(text)
         phone = find_phone(text)
 
         if name is not None:

@@ -34,9 +34,23 @@ NAME_PROMPT = re.compile(
     re.IGNORECASE,
 )
 CONTACT_PROMPT = re.compile(
-    r"подскажите.{0,50}(?:номер\s+телефона|название\s+вашей\s+компании)"
+    r"подскажите.{0,80}(?:номер\s+телефона|название\s+вашей\s+компании)"
     r"|номер\s+телефона\s+для\s+связи",
     re.IGNORECASE,
+)
+COMPANY_PROMPT = re.compile(
+    r"название\s+(?:вашей\s+)?компании|как\s+называется\s+(?:ваша\s+)?компания",
+    re.IGNORECASE,
+)
+PHONE_PROMPT = re.compile(r"номер\s+телефона|телефон\s+для\s+связи", re.IGNORECASE)
+PHONE_CORRECTION = re.compile(
+    r"^(?:исправьте|измените|замените|уточняю|нет[, ]+)?"
+    r".{0,35}(?:мой\s+)?(?:телефон|номер)\b",
+    re.IGNORECASE,
+)
+STANDALONE_COMPANY = re.compile(
+    r"(?:(?:ООО|АО|ПАО|ИП)\s+)?[А-ЯЁа-яёA-Za-z][\w-]*"
+    r"(?:\s+[А-ЯЁа-яёA-Za-z][\w-]*){0,3}"
 )
 APPLICATION_CONFIRMATION = re.compile(
     r"^\s*данные\s+заявки\s+собраны\b",
@@ -100,7 +114,9 @@ def clean_text(text: str) -> str:
 
         # Не включаем предложения, содержащие только контакты
         # или само намерение оформить заявку.
-        if is_contact_message(sentence) or APPLICATION_INTENT.fullmatch(sentence.rstrip(".! ")):
+        if (is_contact_message(sentence)
+                or PHONE_CORRECTION.search(sentence)
+                or APPLICATION_INTENT.fullmatch(sentence.rstrip(".! "))):
             continue
 
         # Скрываем телефон, если он остался
@@ -132,6 +148,10 @@ def is_contact_message(text: str) -> bool:
         "мое имя",
         "мой телефон",
         "мой номер",
+        "исправьте мой телефон",
+        "исправьте телефон",
+        "измените мой телефон",
+        "замените телефон",
         "телефон:",
         "номер телефона:",
         "компания:",
@@ -162,21 +182,35 @@ def summarize_dialogue(
     assistant_explanations = []
     open_questions = []
     pending_question = None
-    waiting_for_name = False
+    awaiting_contact = None
 
     for message in messages:
         # Короткое ФИО без слов «меня зовут» — ответ на запрос
         # контактов, а не обстоятельство обращения.
         if message.role == "assistant":
-            waiting_for_name = bool(NAME_PROMPT.search(message.content))
-            if (waiting_for_name or CONTACT_PROMPT.search(message.content)
+            if NAME_PROMPT.search(message.content):
+                awaiting_contact = "name"
+            elif COMPANY_PROMPT.search(message.content):
+                awaiting_contact = "company"
+            elif PHONE_PROMPT.search(message.content):
+                awaiting_contact = "phone"
+            else:
+                awaiting_contact = None
+            if (CONTACT_PROMPT.search(message.content)
+                    or NAME_PROMPT.search(message.content)
                     or APPLICATION_CONFIRMATION.search(message.content)):
                 continue
         elif message.role == "user":
-            if waiting_for_name and STANDALONE_NAME.fullmatch(message.content.strip()):
-                waiting_for_name = False
+            candidate = message.content.strip().strip(" .!«»")
+            if awaiting_contact == "name" and (
+                    STANDALONE_NAME.fullmatch(message.content.strip())
+                    or re.fullmatch(r"[А-ЯЁа-яё-]+(?:\s+[А-ЯЁа-яё-]+){1,2}", candidate)):
+                awaiting_contact = None
                 continue
-            waiting_for_name = False
+            if awaiting_contact == "company" and STANDALONE_COMPANY.fullmatch(candidate):
+                awaiting_contact = None
+                continue
+            awaiting_contact = None
 
         text = clean_text(message.content)
 

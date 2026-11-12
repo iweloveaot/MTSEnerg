@@ -7,6 +7,39 @@ from application_agent.summarizer import summarize_dialogue
 
 class SummarizerTests(unittest.TestCase):
 
+    def test_free_form_company_and_phone_correction_not_problem(self):
+        result = summarize_dialogue([
+            Message(role="user", content="Оформить заявку"),
+            Message(role="assistant", content="Как я могу к вам обращаться? Укажите имя и фамилию."),
+            Message(role="user", content="Никита Иванов"),
+            Message(role="assistant", content="Подскажите номер телефона для связи."),
+            Message(role="user", content="89122222222"),
+            Message(role="assistant", content="Подскажите, пожалуйста, название вашей компании."),
+            Message(role="user", content="Сеньор"),
+            Message(role="assistant", content="Данные заявки собраны."),
+            Message(role="user", content="Исправьте мой телефон на +7 999 123-45-67"),
+        ])
+        self.assertEqual(result.problem, "Задача клиента пока не уточнена.")
+        self.assertEqual(result.circumstances, "")
+        self.assertEqual(result.discussed_solution, "")
+
+    def test_lowercase_name_reply_is_not_problem(self):
+        result = summarize_dialogue([
+            Message(role="user", content="Оформить заявку"),
+            Message(role="assistant", content="Как я могу к вам обращаться? Укажите имя и фамилию."),
+            Message(role="user", content="никитка иваныч"),
+        ])
+        self.assertEqual(result.problem, "Задача клиента пока не уточнена.")
+
+    def test_real_problem_and_phone_correction(self):
+        result = summarize_dialogue([
+            Message(role="user", content="У нас выросли счета за электроэнергию."),
+            Message(role="user", content="Оформить заявку"),
+            Message(role="user", content="Исправьте мой телефон на +7 999 123-45-67"),
+        ])
+        self.assertEqual(result.problem, "У нас выросли счета за электроэнергию.")
+        self.assertEqual(result.circumstances, "")
+
     def test_only_application_and_contacts_not_a_problem(self):
         messages = [
             Message(role="user", content="Хочу оформить заявку"),
