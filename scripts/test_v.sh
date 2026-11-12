@@ -13,3 +13,6 @@ echo "=== Контракт интеграции: существующий backen
 "$PYTHON" -m unittest discover -s backend_tests -p 'test_integration.py' -q
 echo "=== Все проверки зоны участника В прошли ==="
 echo "Примечание: тесты сборки submission участника А не входят в этот набор."
+echo "=== Frontend: проверка кнопок предложения заявки ==="
+node --check frontend/app.js
+node --test scripts/test_frontend_offer.cjs

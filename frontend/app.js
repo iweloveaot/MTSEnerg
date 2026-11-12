@@ -6,6 +6,9 @@ const messageInput = document.getElementById("message-input");
 const sendButton = document.getElementById("send-button");
 const chatMessages = document.getElementById("chat-messages");
 const newChatButton = document.getElementById("new-chat-button");
+const applicationOffer = document.getElementById("application-offer");
+const acceptApplicationButton = document.getElementById("accept-application-button");
+const declineApplicationButton = document.getElementById("decline-application-button");
 
 const debugToggle = document.getElementById("debug-toggle");
 const debugDetails = document.getElementById("debug-details");
@@ -42,6 +45,8 @@ function setSending(value) {
     sendButton.disabled = value;
     messageInput.disabled = value;
     newChatButton.disabled = value;
+    acceptApplicationButton.disabled = value;
+    declineApplicationButton.disabled = value;
 
     sendButton.textContent = value
         ? "Отправка..."
@@ -147,18 +152,17 @@ async function sendMessage(text) {
     return data;
 }
 
-chatForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+function renderApplicationOffer(data) {
+    applicationOffer.hidden = data?.offer_application !== true;
+}
 
-    if (isSending) {
+async function submitChatMessage(text) {
+    if (isSending || !text.trim()) {
         return;
     }
 
-    const text = messageInput.value.trim();
-
-    if (!text) {
-        return;
-    }
+    const hadOffer = !applicationOffer.hidden;
+    applicationOffer.hidden = true;
 
     addMessage("user", text);
     messageInput.value = "";
@@ -170,31 +174,43 @@ chatForm.addEventListener("submit", async (event) => {
         const data = await sendMessage(text);
 
         addMessage("assistant", data.answer);
-
-        renderDebug(
-            data,
-            performance.now() - startedAt,
-        );
-
+        renderDebug(data, performance.now() - startedAt);
         renderApplication(data.application);
+        renderApplicationOffer(data);
     } catch (error) {
         console.error("Chat request failed:", error);
 
         addMessage(
             "assistant",
-            "Не удалось получить ответ от сервиса консультации. " +
-            "Попробуйте позже.",
+            "Не удалось получить ответ от сервиса консультации. Попробуйте позже."
         );
+
+        // Если отправка выбора не удалась, возвращаем кнопки.
+        applicationOffer.hidden = !hadOffer;
     } finally {
         setSending(false);
         messageInput.focus();
     }
+}
+
+chatForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await submitChatMessage(messageInput.value.trim());
+});
+
+acceptApplicationButton.addEventListener("click", () => {
+    submitChatMessage("Оформить заявку");
+});
+
+declineApplicationButton.addEventListener("click", () => {
+    submitChatMessage("Продолжить консультацию");
 });
 
 newChatButton.addEventListener("click", () => {
     sessionId = crypto.randomUUID();
 
     chatMessages.replaceChildren();
+    applicationOffer.hidden = true;
 
     addMessage(
         "assistant",
