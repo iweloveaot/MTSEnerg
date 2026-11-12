@@ -23,7 +23,7 @@
 
 ```powershell
 $env:ENERGYTOOL_QA_DATA = "$env:USERPROFILE/Downloads"
-python -B -X utf8 -m unittest -v test_energytool_rag
+python -B -X utf8 -m unittest discover -s tests -p test_energytool_rag.py -v
 ```
 
 Без `ENERGYTOOL_QA_DATA` две проверки по архиву организаторов пропускаются. Остальные используют тестовые данные в памяти.
