@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,10 @@ class FakeModel:
 
     def check(self):
         self.generate([{"role": "user", "content": "Проверка"}])
+
+    def generate_prompt(self, messages):
+        dialogue = json.loads(messages[-1]["content"])["dialogue"]
+        return json.dumps({"action": "clarify", "answer": self.generate(dialogue), "source_ids": []})
 
     def close(self):
         pass

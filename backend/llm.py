@@ -32,11 +32,15 @@ class ModelAdapter:
         return self._client
 
     def generate(self, messages):
+        return self.generate_prompt([{"role": "system", "content": SYSTEM_PROMPT}, *messages])
+
+    def generate_prompt(self, messages):
+        """Send the RAG prompt unchanged, including its system instruction."""
         try:
             response = self._get_client().chat.completions.create(
                 model=self.settings.model,
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}, *messages],
-                max_tokens=800,
+                messages=messages,
+                max_tokens=1500,
             )
             answer = response.choices[0].message.content
             if not isinstance(answer, str) or not answer.strip():
