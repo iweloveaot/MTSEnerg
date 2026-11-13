@@ -25,6 +25,9 @@ class ChatService:
         session_id = session_id or str(uuid4())
         with self.store.lock(session_id):
             state = self.store.load(session_id)
+            if state.get("status") == "closed":
+                from .llm import ServiceError
+                raise ServiceError("session_closed", "Диалог закрыт. Начните новый диалог.", 409)
             result = process_message(
                 message, model=self.model, session_id=session_id,
                 history=state["messages"], application_requested=state["application_requested"],
@@ -34,5 +37,19 @@ class ChatService:
                 {"role": "assistant", "content": result["answer"]},
             ])
             state["application_requested"] = state["application_requested"] or bool(APPLICATION_REQUEST.fullmatch(message))
-            self.store.save(session_id, state)
+            self.store.save(session_id, state, result["application"] if state["application_requested"] else None)
             return result
+
+    def create_session(self):
+        session_id = str(uuid4())
+        self.store.save(session_id, {"messages": [], "application_requested": False, "status": "active"})
+        return self.store.get(session_id)
+
+    def close_session(self, session_id):
+        with self.store.lock(session_id):
+            if self.store.get(session_id) is None:
+                return None
+            state = self.store.load(session_id)
+            state["status"] = "closed"
+            self.store.save(session_id, state)
+            return self.store.get(session_id)
