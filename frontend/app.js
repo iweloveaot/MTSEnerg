@@ -9,6 +9,11 @@ const newChatButton = document.getElementById("new-chat-button");
 const applicationOffer = document.getElementById("application-offer");
 const acceptApplicationButton = document.getElementById("accept-application-button");
 const declineApplicationButton = document.getElementById("decline-application-button");
+const loadHistoryButton = document.getElementById("load-history-button");
+const historyStatus = document.getElementById("history-status");
+const historyList = document.getElementById("history-list");
+const historyViewBanner = document.getElementById("history-view-banner");
+const returnToChatButton = document.getElementById("return-to-chat-button");
 
 const debugToggle = document.getElementById("debug-toggle");
 const debugDetails = document.getElementById("debug-details");
@@ -24,6 +29,9 @@ const CHAT_API_URL = "/api/chat";
 
 let sessionId = crypto.randomUUID();
 let isSending = false;
+let isHistoryLoading = false;
+let viewingArchivedSession = false;
+let liveChatSnapshot = null;
 
 function addMessage(role, text) {
     const element = document.createElement("div");
@@ -42,11 +50,13 @@ function addMessage(role, text) {
 
 function setSending(value) {
     isSending = value;
-    sendButton.disabled = value;
-    messageInput.disabled = value;
-    newChatButton.disabled = value;
-    acceptApplicationButton.disabled = value;
-    declineApplicationButton.disabled = value;
+    sendButton.disabled = value || viewingArchivedSession || isHistoryLoading;
+    messageInput.disabled = value || viewingArchivedSession || isHistoryLoading;
+    newChatButton.disabled = value || isHistoryLoading;
+    acceptApplicationButton.disabled = value || viewingArchivedSession || isHistoryLoading;
+    declineApplicationButton.disabled = value || viewingArchivedSession || isHistoryLoading;
+    loadHistoryButton.disabled = value || isHistoryLoading;
+    returnToChatButton.disabled = value || isHistoryLoading;
 
     sendButton.textContent = value
         ? "Отправка..."
@@ -157,7 +167,7 @@ function renderApplicationOffer(data) {
 }
 
 async function submitChatMessage(text) {
-    if (isSending || !text.trim()) {
+    if (isSending || isHistoryLoading || viewingArchivedSession || !text.trim()) {
         return;
     }
 
@@ -193,6 +203,116 @@ async function submitChatMessage(text) {
     }
 }
 
+// Историю получаем отдельно от консультации, не вызывая RAG.
+async function historyRequest(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+    return response.json();
+}
+
+function saveLiveChat() {
+    if (liveChatSnapshot !== null) return;
+    liveChatSnapshot = {
+        messages: [...chatMessages.children],
+        applicationStatus: applicationStatus.textContent,
+        applicationChildren: [...applicationDetails.children],
+        applicationHidden: applicationDetails.hidden,
+        offerHidden: applicationOffer.hidden,
+        responseTime: responseTime.textContent,
+        sources: [...sourceDocuments.children],
+    };
+}
+
+function exitHistoryView() {
+    if (!viewingArchivedSession) return;
+    viewingArchivedSession = false;
+    historyViewBanner.hidden = true;
+    if (liveChatSnapshot !== null) {
+        chatMessages.replaceChildren(...liveChatSnapshot.messages);
+        applicationStatus.textContent = liveChatSnapshot.applicationStatus;
+        applicationDetails.replaceChildren(...liveChatSnapshot.applicationChildren);
+        applicationDetails.hidden = liveChatSnapshot.applicationHidden;
+        applicationOffer.hidden = liveChatSnapshot.offerHidden;
+        responseTime.textContent = liveChatSnapshot.responseTime;
+        sourceDocuments.replaceChildren(...liveChatSnapshot.sources);
+    }
+    liveChatSnapshot = null;
+    setSending(false);
+    messageInput.focus();
+}
+
+async function showArchivedSession(archivedId) {
+    if (isSending || isHistoryLoading) return;
+    isHistoryLoading = true;
+    setSending(false);
+    historyStatus.textContent = "Загружаем диалог...";
+    try {
+        const data = await historyRequest(`/api/sessions/${encodeURIComponent(archivedId)}`);
+        if (!data || !Array.isArray(data.messages)) {
+            throw new Error("Некорректный формат истории");
+        }
+        saveLiveChat();
+        viewingArchivedSession = true;
+        historyViewBanner.hidden = false;
+        chatMessages.replaceChildren();
+        for (const entry of data.messages) {
+            if ((entry.role === "user" || entry.role === "assistant") && typeof entry.content === "string") {
+                addMessage(entry.role, entry.content);
+            }
+        }
+        if (chatMessages.children.length === 0) {
+            addMessage("assistant", "В этом диалоге пока нет сообщений.");
+        }
+        applicationOffer.hidden = true;
+        renderApplication(data.application);
+        responseTime.textContent = "—";
+        sourceDocuments.replaceChildren();
+        historyStatus.textContent = "История открыта только для просмотра.";
+    } catch (error) {
+        console.error("History request failed:", error);
+        historyStatus.textContent = "Не удалось загрузить диалог. Попробуйте снова.";
+    } finally {
+        isHistoryLoading = false;
+        setSending(false);
+    }
+}
+
+loadHistoryButton.addEventListener("click", async () => {
+    if (isSending || isHistoryLoading) return;
+    isHistoryLoading = true;
+    setSending(false);
+    historyStatus.textContent = "Загружаем список диалогов...";
+    try {
+        const data = await historyRequest("/api/sessions");
+        if (!data || !Array.isArray(data.sessions)) {
+            throw new Error("Некорректный формат списка сессий");
+        }
+        historyList.replaceChildren();
+        for (const item of data.sessions) {
+            if (typeof item.session_id !== "string") continue;
+            const button = document.createElement("button");
+            button.type = "button";
+            const status = item.status === "closed" ? "завершён" : "активен";
+            button.textContent = `Диалог ${item.session_id.slice(0, 8)}… (${status})`;
+            button.addEventListener("click", () => showArchivedSession(item.session_id));
+            historyList.appendChild(button);
+        }
+        historyList.hidden = false;
+        historyStatus.textContent = historyList.children.length
+            ? "Выберите диалог для просмотра." : "Сохранённых диалогов пока нет.";
+    } catch (error) {
+        console.error("History list request failed:", error);
+        historyStatus.textContent = "Не удалось получить историю. Попробуйте снова.";
+    } finally {
+        isHistoryLoading = false;
+        setSending(false);
+    }
+});
+
+returnToChatButton.addEventListener("click", () => exitHistoryView());
+
 chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await submitChatMessage(messageInput.value.trim());
@@ -207,6 +327,8 @@ declineApplicationButton.addEventListener("click", () => {
 });
 
 newChatButton.addEventListener("click", () => {
+    if (isSending || isHistoryLoading) return;
+    exitHistoryView();
     sessionId = crypto.randomUUID();
 
     chatMessages.replaceChildren();

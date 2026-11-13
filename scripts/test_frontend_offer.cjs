@@ -43,6 +43,8 @@ function createApp(responses = []) {
         "application-offer",
         "accept-application-button",
         "decline-application-button",
+        "load-history-button", "history-status", "history-list",
+        "history-view-banner", "return-to-chat-button",
     ];
 
     const elements = Object.fromEntries(
@@ -51,6 +53,8 @@ function createApp(responses = []) {
 
     elements["application-offer"].hidden = true;
     elements["application-details"].hidden = true;
+    elements["history-list"].hidden = true;
+    elements["history-view-banner"].hidden = true;
 
     const requests = [];
 
@@ -72,7 +76,7 @@ function createApp(responses = []) {
         },
         console,
         fetch: async (url, options) => {
-            requests.push({ url, ...options });
+            requests.push({ url, ...(options || {}) });
             const response = responses.shift();
             assert.ok(response, "Неожиданный запрос к API");
             return {
@@ -169,4 +173,51 @@ test("Новый диалог скрывает предложение", async ()
     app.elements["new-chat-button"].handlers.click();
 
     assert.equal(app.elements["application-offer"].hidden, true);
+});
+
+
+test("История загружается через GET без обращения к RAG", async () => {
+    const app = createApp([
+        { sessions: [{ session_id: "abc123", status: "closed" }] },
+        { session_id: "abc123", messages: [
+            { role: "user", content: "Привет" },
+            { role: "assistant", content: "Здравствуйте" },
+        ], application: null },
+    ]);
+    await app.elements["load-history-button"].handlers.click();
+    assert.equal(app.requests[0].url, "/api/sessions");
+    assert.equal(app.elements["history-list"].children.length, 1);
+    await app.elements["history-list"].children[0].handlers.click();
+    assert.equal(app.requests[1].url, "/api/sessions/abc123");
+    assert.equal(app.elements["chat-messages"].children.length, 2);
+    assert.equal(app.elements["message-input"].disabled, true);
+});
+
+test("Возврат из истории восстанавливает текущий диалог", async () => {
+    const app = createApp([
+        { answer: "Текущий ответ", offer_application: true },
+        { sessions: [{ session_id: "old", status: "closed" }] },
+        { session_id: "old", messages: [{ role: "user", content: "Старый вопрос" }], application: null },
+        { answer: "Продолжение" },
+    ]);
+    await submit(app, "Текущий вопрос");
+    const current = app.elements["chat-messages"].children.length;
+    await app.elements["load-history-button"].handlers.click();
+    await app.elements["history-list"].children[0].handlers.click();
+    assert.equal(app.elements["application-offer"].hidden, true);
+    await app.elements["return-to-chat-button"].handlers.click();
+    assert.equal(app.elements["chat-messages"].children.length, current);
+    assert.equal(app.elements["application-offer"].hidden, false);
+    await submit(app, "Продолжаем");
+    const req = JSON.parse(app.requests.at(-1).body);
+    assert.equal(req.session_id, "test-session");
+});
+
+test("Некорректный список истории не удаляет переписку", async () => {
+    const app = createApp([{ answer: "Текущий ответ" }, { sessions: null }]);
+    await submit(app, "Привет");
+    const current = app.elements["chat-messages"].children.length;
+    await app.elements["load-history-button"].handlers.click();
+    assert.equal(app.elements["chat-messages"].children.length, current);
+    assert.match(app.elements["history-status"].textContent, /Не удалось/);
 });

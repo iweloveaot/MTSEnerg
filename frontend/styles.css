@@ -385,3 +385,34 @@ input:focus-visible {
     opacity: 0.55;
     cursor: not-allowed;
 }
+/* Архивные диалоги открываются только для просмотра */
+.history-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 22px;
+}
+.history-panel h2 { margin: 0 0 16px; font-size: 18px; }
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-list button, #load-history-button, #return-to-chat-button {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    padding: 10px 12px;
+    text-align: left;
+}
+.history-list button:hover, #load-history-button:hover, #return-to-chat-button:hover {
+    background: #f5f6f8;
+}
+#history-status { color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
+.history-view-banner {
+    padding: 12px 18px;
+    background: #fff9e5;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+}
+.history-view-banner[hidden] { display: none; }

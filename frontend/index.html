@@ -57,6 +57,11 @@
                     </div>
                 </div>
 
+                <section id="history-view-banner" class="history-view-banner" hidden>
+                    <span>Просмотр сохранённого диалога (только чтение)</span>
+                    <button id="return-to-chat-button" type="button">Вернуться к текущему диалогу</button>
+                </section>
+
                 <div id="application-offer" class="application-offer" hidden>
                     <p>Хотите продолжить со специалистом?</p>
 
@@ -97,6 +102,13 @@
                 class="sidebar"
                 aria-label="Информация о консультации"
             >
+                <section class="history-panel">
+                    <h2>История диалогов</h2>
+                    <button id="load-history-button" type="button">Показать историю</button>
+                    <p id="history-status" role="status"></p>
+                    <div id="history-list" class="history-list" hidden></div>
+                </section>
+
                 <section class="application-panel">
                     <h2>Заявка менеджеру</h2>
 
