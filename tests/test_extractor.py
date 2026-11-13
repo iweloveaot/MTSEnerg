@@ -70,6 +70,32 @@ class ExtractorTests(unittest.TestCase):
         self.assertEqual(result.missing_fields, ["phone"])
         self.assertIn("телефон", result.next_question)
 
+    def test_lowercase_name_after_name_question(self):
+        result = make_result([
+            Message(role="assistant", content="Укажите, пожалуйста, имя и фамилию."),
+            Message(role="user", content="никита иванов"),
+        ], application_requested=True)
+        self.assertEqual(result.contacts.full_name, "Никита Иванов")
+        self.assertIn("phone", result.missing_fields)
+
+    def test_uppercase_name_after_name_question(self):
+        result = make_result([
+            Message(role="assistant", content="Укажите, пожалуйста, имя и фамилию."),
+            Message(role="user", content="НИКИТА ИВАНОВ"),
+        ], application_requested=True)
+        self.assertEqual(result.contacts.full_name, "Никита Иванов")
+
+    def test_lowercase_name_not_guessed_without_question(self):
+        result = make_result([Message(role="user", content="никита иванов")])
+        self.assertIsNone(result.contacts.full_name)
+
+    def test_company_prefix_not_mistaken_for_name(self):
+        result = make_result([
+            Message(role="assistant", content="Укажите, пожалуйста, имя и фамилию."),
+            Message(role="user", content="компания ромашка"),
+        ])
+        self.assertIsNone(result.contacts.full_name)
+
     def test_unprompted_standalone_name_not_guessed(self):
         result = make_result([
             Message(role="user", content="Иван Петров"),
@@ -83,6 +109,27 @@ class ExtractorTests(unittest.TestCase):
         ])
         self.assertIsNone(result.contacts.full_name)
         self.assertEqual(result.contacts.company, "ТестЭнерго")
+
+    def test_company_name_without_prefix_after_question(self):
+        result = make_result([
+            Message(role="user", content="Оформить заявку"),
+            Message(role="assistant", content="Подскажите, пожалуйста, название вашей компании."),
+            Message(role="user", content="Сеньор"),
+        ], application_requested=True)
+        self.assertEqual(result.contacts.company, "Сеньор")
+
+    def test_unprompted_company_name_not_guessed(self):
+        result = make_result([Message(role="user", content="Сеньор")])
+        self.assertIsNone(result.contacts.company)
+
+    def test_company_name_replaced_after_new_company_question(self):
+        result = make_result([
+            Message(role="assistant", content="Подскажите название вашей компании."),
+            Message(role="user", content="Ромашка"),
+            Message(role="assistant", content="Подскажите название вашей компании."),
+            Message(role="user", content="Сеньор"),
+        ])
+        self.assertEqual(result.contacts.company, "Сеньор")
 
     def test_corrected_phone(self):
         result = make_result([
@@ -152,6 +199,56 @@ class ExtractorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "declined")
         self.assertIsNone(result.next_question)
+        self.assertIsNone(result.contacts.phone)
+
+    def test_no_thanks_after_phone_question_declines(self):
+        result = make_result([
+            Message(role="user", content="Хочу оформить заявку"),
+            Message(role="assistant", content="Подскажите номер телефона для связи."),
+            Message(role="user", content="Нет, спасибо"),
+        ], application_requested=True)
+        self.assertEqual(result.status, "declined")
+        self.assertIsNone(result.next_question)
+
+    def test_no_thanks_without_contact_question_is_not_refusal(self):
+        result = make_result([
+            Message(role="assistant", content="Есть ли ещё вопросы по тарифам?"),
+            Message(role="user", content="Нет, спасибо"),
+        ], application_requested=False)
+        self.assertFalse(result.contact_collection_declined)
+
+    def test_declined_consultation_does_not_restart_contact_collection(self):
+        result = make_result([
+            Message(role="user", content="Оформить заявку"),
+            Message(role="assistant", content="Подскажите номер телефона для связи."),
+            Message(role="user", content="Нет, спасибо"),
+            Message(role="assistant", content="Могу ответить на вопросы об учёте."),
+            Message(role="user", content="Какие бывают тарифы?"),
+        ], application_requested=True)
+        self.assertEqual(result.status, "declined")
+        self.assertIsNone(result.next_question)
+
+    def test_new_opt_in_after_decline_resumes_collection(self):
+        result = make_result([
+            Message(role="user", content="Оформить заявку"),
+            Message(role="assistant", content="Подскажите номер телефона для связи."),
+            Message(role="user", content="Нет, спасибо"),
+            Message(role="assistant", content="Можем продолжить консультацию."),
+            Message(role="user", content="Хочу оформить заявку"),
+        ], application_requested=True)
+        self.assertFalse(result.contact_collection_declined)
+        self.assertEqual(result.status, "draft")
+        self.assertIn("имя", result.next_question)
+
+    def test_unsolicited_phone_after_decline_is_not_opt_in(self):
+        result = make_result([
+            Message(role="user", content="Оформить заявку"),
+            Message(role="assistant", content="Подскажите номер телефона для связи."),
+            Message(role="user", content="Нет, спасибо"),
+            Message(role="assistant", content="Расскажите, чем помочь."),
+            Message(role="user", content="Мой телефон +7 999 123-45-67"),
+        ], application_requested=True)
+        self.assertTrue(result.contact_collection_declined)
         self.assertIsNone(result.contacts.phone)
 
     def test_no_invented_contacts(self):

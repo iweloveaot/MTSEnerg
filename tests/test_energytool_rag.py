@@ -6,7 +6,8 @@ import unittest
 from pathlib import Path
 from zipfile import ZipFile
 
-from energytool_rag import SearchIndex, consult, parse_question
+from consultation_agent import APPLICATION_INVITATION, SearchIndex, consult, parse_question, search_dialogue
+from scripts.export_consultation import OUTPUT, build_source
 
 
 class ConsultationTests(unittest.TestCase):
@@ -26,6 +27,9 @@ class ConsultationTests(unittest.TestCase):
             ))
         archive.seek(0)
         self.index = SearchIndex.from_zip(archive)
+
+    def test_submission_module_is_up_to_date(self):
+        self.assertEqual(OUTPUT.read_text(encoding="utf-8"), build_source())
 
     def test_source_contains_condition_and_heading_location(self):
         [hit] = self.index.search(parse_question("Можно установить на крыше?"), top_k=1)
@@ -95,6 +99,41 @@ class ConsultationTests(unittest.TestCase):
                 self.assertEqual(result.generation_issue, expected_issue)
                 self.assertEqual(result.action, "specialist" if expected_issue else "answer")
 
+    def test_application_invitation_respects_refusal_and_clarification(self):
+        messages = parse_question("Сколько будет стоить проект?")
+        for action, declined, expected_offer in (
+            ("specialist", False, True),
+            ("specialist", True, False),
+            ("clarify", False, False),
+        ):
+            with self.subTest(action=action, declined=declined):
+                def generate(prompt):
+                    self.assertEqual(json.loads(prompt[1]["content"])["contact_collection_declined"], declined)
+                    return json.dumps({
+                        "action": action, "answer": "Уточним параметры объекта.",
+                        "source_ids": [], "offer_application": True,
+                    })
+
+                result = consult(self.index, messages, generate, contact_collection_declined=declined)
+                self.assertEqual(result.offer_application, expected_offer)
+                self.assertEqual(APPLICATION_INVITATION in result.answer, expected_offer)
+                self.assertIsNone(result.generation_issue)
+
+    def test_return_to_topic_uses_matching_earlier_turns(self):
+        messages = parse_question(
+            "Пользователь: Солнечная станция для склада, кровля шиферная.\n"
+            "Пользователь: Другой вопрос. Для цехов нужен учёт.\n"
+            "Пользователь: Вернёмся к солнечной станции. С чего начать?\n"
+            "Пользователь: Подойдёт ли такая крыша?"
+        )
+        self.assertEqual(
+            [item["content"] for item in search_dialogue(messages)],
+            [messages[0]["content"], "солнечной станции. С чего начать?", messages[-1]["content"]],
+        )
+        self.assertEqual(
+            self.index.search(messages, top_k=1)[0].source.document_id, "catalog/solar",
+        )
+
 
 @unittest.skipUnless(os.getenv("ENERGYTOOL_QA_DATA"), "Укажите каталог ENERGYTOOL_QA_DATA.")
 class CorpusRetrievalTests(unittest.TestCase):
@@ -133,6 +172,17 @@ class CorpusRetrievalTests(unittest.TestCase):
         fresh = self.index.search(parse_question(question))
         self.assertEqual(self.index.search(parse_question(switched)), fresh)
         self.assertIn("20-products/23-solar#10", {hit.source.section_id for hit in fresh})
+
+    def test_object_estimate_finds_requirements_for_prior_product(self):
+        messages = parse_question(
+            "Пользователь: На трёх складах нужна платформа учёта, 24 счётчика.\n"
+            "Пользователь: Можете сделать точный расчёт для наших складов?"
+        )
+        hits = self.index.search(messages)
+        self.assertIn(
+            "00-reference/03-calculation-and-requests#07",
+            {hit.source.section_id for hit in hits},
+        )
 
 
 if __name__ == "__main__":

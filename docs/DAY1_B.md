@@ -7,7 +7,7 @@
 Из каталога проекта в PowerShell с Python 3.11 или новее.
 
 ```powershell
-python -B -m unittest -v test_energytool_rag
+python -B -m unittest discover -s tests -p test_energytool_rag.py -v
 python -B -X utf8 energytool_rag.py "$env:USERPROFILE/Downloads/knowledge-base.zip" --question "Можно установить солнечные панели на двух скатах?"
 python -B -X utf8 energytool_rag.py "$env:USERPROFILE/Downloads/knowledge-base.zip" --questions "$env:USERPROFILE/Downloads/demo_questions.csv" --top-k 5
 ```
