@@ -190,10 +190,11 @@ async function submitChatMessage(text) {
     } catch (error) {
         console.error("Chat request failed:", error);
 
-        addMessage(
-            "assistant",
-            "Не удалось получить ответ от сервиса консультации. Попробуйте позже."
-        );
+        const errorMessage = error.message === "HTTP 503"
+            ? "Сервис консультации сейчас недоступен. Попробуйте позже или обратитесь к специалисту."
+            : "Не удалось получить ответ. Проверьте соединение и попробуйте позже.";
+
+        addMessage("assistant", errorMessage);
 
         // Если отправка выбора не удалась, возвращаем кнопки.
         applicationOffer.hidden = !hadOffer;
