@@ -338,3 +338,81 @@ input:focus-visible {
         padding: 18px;
     }
 }
+
+/* Предложение связаться со специалистом */
+.application-offer {
+    margin: 12px 0;
+    padding: 16px;
+    border: 1px solid #e4e4e7;
+    border-radius: 12px;
+    background: #fafafa;
+}
+
+.application-offer[hidden] {
+    display: none;
+}
+
+.application-offer p {
+    margin: 0 0 12px;
+    font-weight: 600;
+}
+
+.application-offer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.application-offer-actions button {
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#accept-application-button {
+    background: #e30611;
+    color: white;
+    border: 1px solid #e30611;
+}
+
+#decline-application-button {
+    background: white;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+.application-offer-actions button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+/* Архивные диалоги открываются только для просмотра */
+.history-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 22px;
+}
+.history-panel h2 { margin: 0 0 16px; font-size: 18px; }
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-list button, #load-history-button, #return-to-chat-button {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    padding: 10px 12px;
+    text-align: left;
+}
+.history-list button:hover, #load-history-button:hover, #return-to-chat-button:hover {
+    background: #f5f6f8;
+}
+#history-status { color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
+.history-view-banner {
+    padding: 12px 18px;
+    background: #fff9e5;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+}
+.history-view-banner[hidden] { display: none; }

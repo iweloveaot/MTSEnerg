@@ -41,6 +41,22 @@ REFUSAL_PATTERN = re.compile(
 )
 
 
+# A short refusal is meaningful only after the assistant asks for contacts.
+SHORT_CONTACT_REFUSAL = re.compile(r"^\s*нет\s*,?\s*спасибо[.!]?\s*$", re.IGNORECASE)
+CONTACT_QUESTION = re.compile(
+    r"имя\s+и\s+фамилию|как\s+я\s+могу\s+к\s+вам\s+обращаться|"
+    r"телефон|номер\s+телефона|название\s+(?:вашей\s+)?компании|"
+    r"как\s+называется\s+(?:ваша\s+)?компания",
+    re.IGNORECASE,
+)
+# Match the existing backend opt-in commands, not arbitrary occurrences of 'заявка'.
+EXPLICIT_APPLICATION_REQUEST = re.compile(
+    r"^\s*(?:хочу\s+оформить\s+заявку|оформить\s+заявку|"
+    r"оформите\s+заявку|оставить\s+заявку|хочу\s+оставить\s+заявку)[.!\s]*$",
+    re.IGNORECASE,
+)
+
+
 # A short name-only answer is accepted only in response to the assistant's
 # explicit request for a name. This avoids treating product names as contacts.
 STANDALONE_NAME_PATTERN = re.compile(
@@ -166,8 +182,16 @@ def extract_contacts(
             previous_message = message
             continue
 
-        if REFUSAL_PATTERN.search(text):
+        if REFUSAL_PATTERN.search(text) or (
+            previous_message is not None
+            and previous_message.role == "assistant"
+            and CONTACT_QUESTION.search(previous_message.content)
+            and SHORT_CONTACT_REFUSAL.fullmatch(text)
+        ):
             declined = True
+        elif EXPLICIT_APPLICATION_REQUEST.fullmatch(text):
+            # A later, explicit opt-in overrides an earlier refusal.
+            declined = False
 
         asked_for_name = (
             previous_message is not None
@@ -191,9 +215,8 @@ def extract_contacts(
         if company is not None:
             contacts.company = company
 
-        if phone is not None:
+        if phone is not None and not declined:
             contacts.phone = phone
-            declined = False
 
         previous_message = message
 

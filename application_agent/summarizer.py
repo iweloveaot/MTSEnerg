@@ -165,6 +165,72 @@ def is_contact_message(text: str) -> bool:
         or bool(PHONE_PATTERN.fullmatch(text.strip()))
     )
 
+# Явные исправления количества приборов учёта. Не затрагиваем прочие числа
+# (например, мощность оборудования или число складов).
+METER_COUNT_CORRECTION = re.compile(
+    r"\bне\s+(?P<old>\d+)\s*[,;—-]?\s*а\s+(?P<new>\d+)"
+    r"\s+(?P<unit>сч[её]тчик(?:ами|ов|ом|ах|а|и)?)\b",
+    re.IGNORECASE,
+)
+METER_COUNT_REFERENCE = re.compile(
+    r"\b(?P<count>\d+)\s+(?P<unit>сч[её]тчик(?:ами|ов|ом|ах|а|и)?)\b",
+    re.IGNORECASE,
+)
+MAIN_TOPIC_CHANGE = re.compile(
+    r"^\s*(?:теперь\s+(?:главная|основная)\s+задача\b|"
+    r"(?:главная|основная)\s+задача\s+теперь\b|"
+    r"теперь\s+(?:меня|нас)\s+интересует\b|"
+    r"(?:давайте|хочу)\s+(?:сменить|поменять)\s+тему\b)",
+    re.IGNORECASE,
+)
+
+
+def apply_user_corrections(statements: list[str]) -> tuple[str, list[str]]:
+    """Учёт явно исправленных данных и смены основной задачи."""
+    current: list[str] = []
+    old_topics: list[str] = []
+
+    for statement in statements:
+        if MAIN_TOPIC_CHANGE.search(statement) and current:
+            # Новый основной вопрос, прежний сохраняем только как историю.
+            old_topics.extend(current)
+            current = [statement]
+            continue
+
+        correction = METER_COUNT_CORRECTION.search(statement)
+        if correction:
+            old_count, new_count = correction.group("old", "new")
+            replaced = False
+            # Исправляем только прежнее значение с тем же типом прибора.
+            for index in range(len(current) - 1, -1, -1):
+                original = current[index]
+                match = next(
+                    (m for m in METER_COUNT_REFERENCE.finditer(original)
+                     if m.group("count") == old_count),
+                    None,
+                )
+                if match:
+                    current[index] = (
+                        original[:match.start()]
+                        + new_count + " " + match.group("unit")
+                        + original[match.end():]
+                    )
+                    replaced = True
+                    break
+            if replaced:
+                continue
+            # Нет предыдущего числа: сохраняем новое значение,
+            # не утверждая, что устаревшее число актуально.
+            current.append("Уточнено: " + new_count + " " + correction.group("unit") + ".")
+            continue
+
+        current.append(statement)
+
+    if not current:
+        return "", []
+    return current[0], current[1:4] + ["Ранее обсуждалось: " + topic for topic in old_topics]
+
+
 def summarize_dialogue(
     messages: list[Message],
 ) -> ApplicationSummary:
@@ -235,20 +301,10 @@ def summarize_dialogue(
             else:
                 assistant_explanations.append(text)
 
-    # Пока используем простое правило:
-    # первое содержательное сообщение клиента
-    # считаем описанием задачи.
-    problem = (
-        user_statements[0]
-        if user_statements
-        else ("Задача клиента пока не уточнена." if messages else "")
-    )
-
-    # Последующие сообщения клиента
-    # содержат уточнения и обстоятельства.
-    circumstances = " ".join(
-        user_statements[1:4]
-    )
+    problem, details = apply_user_corrections(user_statements)
+    if not problem:
+        problem = "Задача клиента пока не уточнена." if messages else ""
+    circumstances = " ".join(details)
 
     # Важно: это слова консультанта,
     # а не подтверждённые факты о продукте.

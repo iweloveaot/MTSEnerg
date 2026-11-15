@@ -39,20 +39,23 @@ def process_message(message, *, model, index, session_id=None, history=None,
         session_id=session_id, messages=[Message(**item) for item in messages],
         application_requested=bool(requested),
     ))
-    sources, issue = [], None
+    sources, issue, offer = [], None, False
     if application.next_question:
         answer, action = application.next_question, "contacts"
     elif application.ready:
         answer = "Данные заявки собраны. Они отображаются в карточке заявки; отправка менеджеру пока не подключена."
         action = "ready"
     else:
-        consultation = consult(index, messages, model.generate_prompt)
+        consultation = consult(index, messages, model.generate_prompt,
+                               contact_collection_declined=application.contact_collection_declined)
         answer, action = consultation.answer, consultation.action
         sources = list(dict.fromkeys(source.path for source in consultation.sources))
         issue = consultation.generation_issue
+        offer = consultation.offer_application
     return {
         "answer": answer, "action": action, "session_id": session_id,
         "processing_time_ms": round((perf_counter() - started) * 1000, 2),
         "sources": sources, "application": result_to_dict(application),
         "generation_issue": issue,
+        "offer_application": offer,
     }

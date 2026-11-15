@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import Annotated, Optional
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -50,6 +50,28 @@ def create_app(settings=None, model=None):
                 "error": {"code": "invalid_message", "message": "Введите текст сообщения."},
             })
         return service.chat(body.message, body.session_id)
+
+    @app.post("/api/sessions", status_code=201)
+    def create_session():
+        return service.create_session()
+
+    @app.get("/api/sessions")
+    def list_sessions():
+        return {"sessions": service.store.list_sessions()}
+
+    @app.get("/api/sessions/{session_id}")
+    def get_session(session_id: str):
+        result = service.store.get(session_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Диалог не найден")
+        return result
+
+    @app.post("/api/sessions/{session_id}/close")
+    def close_session(session_id: str):
+        result = service.close_session(session_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Диалог не найден")
+        return result
 
     app.mount("/", StaticFiles(directory=ROOT / "frontend", html=True), name="frontend")
     return app
