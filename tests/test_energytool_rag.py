@@ -90,6 +90,8 @@ class ConsultationTests(unittest.TestCase):
         for price, source, expected_issue in (
             ("25 тыс. рублей", "catalog/metering#02", None),
             ("19 000 руб.", "catalog/metering#02", "unsupported_price"),
+            ("от 19 до 25 тыс. руб.", "catalog/metering#02", "unsupported_price"),
+            ("19–25 тыс. руб.", "catalog/metering#02", "unsupported_price"),
             ("25 000 рублей", "catalog/metering#01", "unsupported_price"),
         ):
             with self.subTest(price=price, source=source):
@@ -157,6 +159,13 @@ class CorpusRetrievalTests(unittest.TestCase):
                 self.assertTrue(sources <= {hit.source.section_id for hit in hits})
                 if case == "10":
                     self.assertIn(hits[0].source.section_id, sources)
+
+    def test_factory_can_find_metering_for_individual_workshops(self):
+        messages = parse_question(
+            "На заводе хотим видеть расход электричества по каждому цеху. Можно ли так вести учёт?"
+        )
+        hits = self.index.search(messages)
+        self.assertIn("20-products/22-askue#03", {hit.source.section_id for hit in hits})
 
     def test_follow_up_with_numeric_category_and_subject_change(self):
         history = (

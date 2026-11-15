@@ -17,4 +17,4 @@ python -B -X utf8 -m unittest discover -s tests -p test_energytool_rag.py -v
 python -B -X utf8 energytool_rag.py "$env:ENERGYTOOL_QA_DATA/knowledge-base.zip" --question "Что нужно для оценки проекта учёта?"
 ```
 
-Отчёты по работе Б — [день 1](DAY1_B.md), [день 2](DAY2_B.md), [день 3](DAY3_B.md).
+Отчёты по работе Б — [день 1](DAY1_B.md), [день 2](DAY2_B.md), [день 3](DAY3_B.md), [день 4](DAY4_B.md), [день 5](DAY5_B.md).
