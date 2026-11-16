@@ -1,3 +1,5 @@
+from typing import Optional
+
 from .extractor import extract_contacts
 from .models import (
     ApplicationAgentInput,
@@ -58,7 +60,7 @@ def get_next_question(
     missing_fields: list[str],
     contact_collection_declined: bool,
     application_requested: bool,
-) -> str | None:
+) -> Optional[str]:
     """Возвращает вопрос только при согласии на заявку."""
 
     if not application_requested:

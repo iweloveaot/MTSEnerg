@@ -1,0 +1,16 @@
+services:
+  energytool:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      SESSION_DB_PATH: /data/sessions.sqlite3
+      KNOWLEDGE_BASE_PATH: /knowledge/knowledge-base.zip
+    volumes:
+      - energytool_data:/data
+      - ./knowledge-base.zip:/knowledge/knowledge-base.zip:ro
+    restart: unless-stopped
+volumes:
+  energytool_data:

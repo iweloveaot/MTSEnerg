@@ -1,0 +1,14 @@
+**
+!requirements.txt
+!solution.py
+!orchestration.py
+!energytool_rag.py
+!submission_model.py
+!backend/
+!backend/*.py
+!application_agent/
+!application_agent/*.py
+!frontend/
+!frontend/*.html
+!frontend/*.css
+!frontend/*.js

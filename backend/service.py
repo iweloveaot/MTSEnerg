@@ -1,13 +1,21 @@
-from functools import lru_cache
+from threading import Lock
 from energytool_rag import SearchIndex
 from orchestration import APPLICATION_REQUEST, process_message as orchestrate
 from solution import knowledge_path
 from uuid import uuid4
+from time import perf_counter
 
 
-@lru_cache(maxsize=1)
+_index = None
+_index_lock = Lock()
+
+
 def get_index():
-    return SearchIndex.from_zip(knowledge_path())
+    global _index
+    with _index_lock:
+        if _index is None:
+            _index = SearchIndex.from_zip(knowledge_path())
+        return _index
 
 
 def process_message(message, *, model, session_id=None, history=None, application_requested=False):
@@ -22,6 +30,7 @@ class ChatService:
         self.model, self.store = model, store
 
     def chat(self, message, session_id=None):
+        started = perf_counter()
         session_id = session_id or str(uuid4())
         with self.store.lock(session_id):
             state = self.store.load(session_id)
@@ -38,6 +47,7 @@ class ChatService:
             ])
             state["application_requested"] = state["application_requested"] or bool(APPLICATION_REQUEST.fullmatch(message))
             self.store.save(session_id, state, result["application"] if state["application_requested"] else None)
+            result["metrics"]["total_ms"] = round((perf_counter() - started) * 1000, 2)
             return result
 
     def create_session(self):

@@ -1,4 +1,5 @@
 from openai import OpenAI, APIConnectionError, APITimeoutError, APIStatusError
+from threading import Lock
 from .config import Settings
 
 
@@ -20,15 +21,17 @@ class ModelAdapter:
     def __init__(self, settings: Settings):
         self.settings = settings
         self._client = None
+        self._client_lock = Lock()
 
     def _get_client(self):
         if not all((self.settings.api_key, self.settings.base_url, self.settings.model)):
             raise ServiceError("model_not_configured", "API модели не настроен.")
-        if self._client is None:
-            self._client = OpenAI(
-                api_key=self.settings.api_key, base_url=self.settings.base_url,
-                timeout=self.settings.timeout, max_retries=0,
-            )
+        with self._client_lock:
+            if self._client is None:
+                self._client = OpenAI(
+                    api_key=self.settings.api_key, base_url=self.settings.base_url,
+                    timeout=self.settings.timeout, max_retries=2,
+                )
         return self._client
 
     def generate(self, messages):

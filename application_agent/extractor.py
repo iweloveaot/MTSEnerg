@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from .models import Contacts, Message
 from .validator import normalize_phone
@@ -82,7 +83,7 @@ COMPANY_ANSWER_PATTERN = re.compile(
 COMPANY_STOP_ANSWERS = {"не знаю", "нет компании", "нет", "пока нет", "не хочу", "без компании"}
 
 
-def find_company_answer(text: str) -> str | None:
+def find_company_answer(text: str) -> Optional[str]:
     candidate = text.strip().strip(' «»".!')
     if not candidate or candidate.casefold() in COMPANY_STOP_ANSWERS:
         return None
@@ -93,7 +94,7 @@ def find_company_answer(text: str) -> str | None:
     return candidate.removeprefix("ООО ").strip() if candidate.startswith("ООО ") else candidate
 
 
-def find_name(text: str, *, asked_for_name: bool = False) -> str | None:
+def find_name(text: str, *, asked_for_name: bool = False) -> Optional[str]:
     matches = list(NAME_PATTERN.finditer(text))
     if matches:
         return matches[-1].group(1).strip()
@@ -109,7 +110,7 @@ def find_name(text: str, *, asked_for_name: bool = False) -> str | None:
     return None
 
 
-def find_company(text: str) -> str | None:
+def find_company(text: str) -> Optional[str]:
     matches = list(COMPANY_PATTERN.finditer(text))
 
     if not matches:
@@ -120,7 +121,7 @@ def find_company(text: str) -> str | None:
     return value.strip(' «»"')
 
 
-def find_phone(text: str) -> str | None:
+def find_phone(text: str) -> Optional[str]:
     for match in reversed(list(PHONE_PATTERN.finditer(text))):
         candidate = match.group()
 

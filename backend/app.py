@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .config import ROOT, Settings
 from .llm import ModelAdapter, ServiceError
-from .service import ChatService
+from .service import ChatService, get_index
 from .store import SessionStore
 
 
@@ -22,8 +22,11 @@ def create_app(settings=None, model=None):
 
     @asynccontextmanager
     async def lifespan(app):
-        yield
-        model.close()
+        get_index()
+        try:
+            yield
+        finally:
+            model.close()
 
     app = FastAPI(title="MTS Energytool", lifespan=lifespan)
     app.state.service = service

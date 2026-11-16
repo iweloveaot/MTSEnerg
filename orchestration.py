@@ -19,6 +19,18 @@ APPLICATION_REQUEST = re.compile(
 )
 
 
+class TimedIndex:
+    def __init__(self, index, metrics):
+        self.index, self.metrics = index, metrics
+
+    def search(self, *args, **kwargs):
+        started = perf_counter()
+        try:
+            return self.index.search(*args, **kwargs)
+        finally:
+            self.metrics["search_ms"] += (perf_counter() - started) * 1000
+
+
 def process_message(message, *, model, index, session_id=None, history=None,
                     application_requested=False):
     started = perf_counter()
@@ -40,13 +52,23 @@ def process_message(message, *, model, index, session_id=None, history=None,
         application_requested=bool(requested),
     ))
     sources, issue, offer = [], None, False
+    metrics = {"search_ms": 0.0, "generation_ms": 0.0, "model_calls": 0}
+
+    def generate(prompt):
+        metrics["model_calls"] += 1
+        started_generation = perf_counter()
+        try:
+            return model.generate_prompt(prompt)
+        finally:
+            metrics["generation_ms"] += (perf_counter() - started_generation) * 1000
+
     if application.next_question:
         answer, action = application.next_question, "contacts"
     elif application.ready:
         answer = "Данные заявки собраны. Они отображаются в карточке заявки; отправка менеджеру пока не подключена."
         action = "ready"
     else:
-        consultation = consult(index, messages, model.generate_prompt,
+        consultation = consult(TimedIndex(index, metrics), messages, generate,
                                contact_collection_declined=application.contact_collection_declined)
         answer, action = consultation.answer, consultation.action
         sources = list(dict.fromkeys(source.path for source in consultation.sources))
@@ -58,4 +80,7 @@ def process_message(message, *, model, index, session_id=None, history=None,
         "sources": sources, "application": result_to_dict(application),
         "generation_issue": issue,
         "offer_application": offer,
+        "metrics": {"search_ms": round(metrics["search_ms"], 2),
+                    "generation_ms": round(metrics["generation_ms"], 2),
+                    "model_calls": metrics["model_calls"]},
     }
